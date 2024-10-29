@@ -15,8 +15,24 @@ int drive_mode = 0;
 mbot_bhy_config_t mbot_imu_config;
 mbot_bhy_data_t mbot_imu_data;
 
+
+// PID structure and initialization for both wheels
+typedef struct {
+    float kp;
+    float ki;
+    float kd;
+    float prev_error;
+    float integral;
+} PIDController;
+
+PIDController pid_left, pid_right;
+
+
+
+
 // Forward declaration for internal helper function
 int mbot_init_pico(void);
+float pid_compute(PIDController *pid, float setpoint, float measured_value);
 int mbot_init_hardware(void);
 void mbot_read_encoders(serial_mbot_encoders_t* encoders);
 void mbot_read_imu(serial_mbot_imu_t *imu);
@@ -31,6 +47,24 @@ void print_mbot_params(const mbot_params_t* params);
  * main loop and initial setup. Students may be asked to review or
  * modify parts of this section depending on their assignment.
  *********************************************************************/
+ void pid_init(PIDController *pid, float kp, float ki, float kd) {
+    pid->kp = kp;
+    pid->ki = ki;
+    pid->kd = kd;
+    pid->prev_error = 0.0f;
+    pid->integral = 0.0f;
+}
+
+float pid_compute(PIDController *pid, float setpoint, float measured_value) {
+    float error = setpoint - measured_value;
+    pid->integral += error; // Accumulate the error for integral term
+    float derivative = error - pid->prev_error; // Calculate the derivative
+    pid->prev_error = error;
+
+    // Compute PID output
+    return (pid->kp * error) + (pid->ki * pid->integral) + (pid->kd * derivative);
+}
+
 
 bool mbot_loop(repeating_timer_t *rt)
 {
@@ -61,12 +95,44 @@ bool mbot_loop(repeating_timer_t *rt)
             //TODO: open loop for now - implement closed loop controller
             mbot_motor_vel_cmd.velocity[MOT_L] = (mbot_vel_cmd.vx - DIFF_BASE_RADIUS * mbot_vel_cmd.wz) / DIFF_WHEEL_RADIUS;
             mbot_motor_vel_cmd.velocity[MOT_R] = (-mbot_vel_cmd.vx - DIFF_BASE_RADIUS * mbot_vel_cmd.wz) / DIFF_WHEEL_RADIUS;
+            float left_pid_output = pid_compute(&pid_left, mbot_motor_vel_cmd.velocity[MOT_L], mbot_motor_vel.velocity[MOT_L]);
+            float right_pid_output = pid_compute(&pid_right, mbot_motor_vel_cmd.velocity[MOT_R], mbot_motor_vel.velocity[MOT_R]);
 
-            float vel_left_comp = params.motor_polarity[MOT_L] * mbot_motor_vel_cmd.velocity[MOT_L];
-            float vel_right_comp = params.motor_polarity[MOT_R] * mbot_motor_vel_cmd.velocity[MOT_R];
+            //mbot_motor_pwm_cmd.pwm[MOT_R] = _calibrated_pwm_from_vel_cmd(params.motor_polarity[MOT_R] * right_pid_output, MOT_R);
+            //mbot_motor_pwm_cmd.pwm[MOT_L] = _calibrated_pwm_from_vel_cmd(params.motor_polarity[MOT_L] * left_pid_output, MOT_L);
+
+            
+            //PID ROUTINE----------------
+            
+            // PID parameters for right motor
+    //float Kp_R = 1.0;   
+    //float Ki_R = 0.1;   
+    //float Kd_R = 0.05;  
+    
+    //static float error_R_prev = 0;   // Previous error for derivative calculation
+    //static float integral_R = 0; 
+    
+    //// Calculate error based on encoder feedback
+//float error_R = mbot_motor_vel_cmd.velocity[MOT_R] - mbot_motor_vel.velocity[MOT_R];
+
+//// Update integral (accumulate error)
+//integral_R += error_R * (MAIN_LOOP_PERIOD);
+
+//// Calculate derivative (rate of change of error)
+//float derivative_R = (error_R - error_R_prev) / MAIN_LOOP_PERIOD;
+
+//// Compute PID control signal
+//float control_signal_R = (Kp_R * error_R) + (Ki_R * integral_R) + (Kd_R * derivative_R);
+
+//// Update previous error
+//error_R_prev = error_R;
+            
+            //--------------------------
+            float vel_left_comp = params.motor_polarity[MOT_L] * (mbot_motor_vel_cmd.velocity[MOT_L]+left_pid_output);
+            float vel_right_comp = params.motor_polarity[MOT_R] * (mbot_motor_vel_cmd.velocity[MOT_R]+right_pid_output);
 
             mbot_motor_pwm.utime = global_utime;
-            mbot_motor_pwm_cmd.pwm[MOT_R] = _calibrated_pwm_from_vel_cmd(vel_right_comp, MOT_R);
+            mbot_motor_pwm_cmd.pwm[MOT_R] = _calibrated_pwm_from_vel_cmd(vel_right_comp, MOT_R) ;
             mbot_motor_pwm_cmd.pwm[MOT_L] = _calibrated_pwm_from_vel_cmd(vel_left_comp, MOT_L);
         }else {
             drive_mode = MODE_MOTOR_PWM;
@@ -113,6 +179,9 @@ int main()
     mbot_init_hardware();
     mbot_init_comms();
     mbot_read_fram(0, sizeof(params), &params);
+    pid_init(&pid_left, 1.0, 0.01, 0.1);   // Example gains, adjust as needed
+    pid_init(&pid_right, 1.0, 0.01, 0.1);
+
 
     //Check also that define drive type is same as FRAM drive type
     int validate_status = validate_mbot_classic_FRAM_data(&params, MOT_L, MOT_R, MOT_UNUSED);

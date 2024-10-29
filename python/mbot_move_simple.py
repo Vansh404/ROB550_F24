@@ -15,8 +15,8 @@ init_odometry.theta = 0
 lc.publish("MBOT_ODOMETRY_RESET", init_odometry.encode())
 
 # Set velocity
-fwd_vel = 0.0   # m/s
-turn_vel = 3.14  # rad/s
+fwd_vel = 0.2   # m/s
+turn_vel = 0.0  # rad/s
 
 command = twist2D_t() # A twist2D_t command encodes forward and rotational speeds of the bot
 command.vx = fwd_vel
@@ -25,7 +25,7 @@ command.wz = turn_vel
 # Send mbot velocity command
 lc.publish("MBOT_VEL_CMD",command.encode())
 # Let MBot drive for 1 seconds
-time.sleep(1)
+time.sleep(20)
 
 # Send velocity = 0 to stop
 command.vx = 0
