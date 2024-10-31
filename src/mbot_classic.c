@@ -82,7 +82,7 @@ bool mbot_loop(repeating_timer_t *rt)
 
     // Update mbot_odometry
     mbot_odometry.utime = global_utime;
-    mbot_calculate_odometry(mbot_vel, MAIN_LOOP_PERIOD, &mbot_odometry);
+    mbot_calculate_odometry(mbot_vel, MAIN_LOOP_PERIOD, &mbot_odometry,&mbot_imu);
 
     // only run if we've got 2 way communication...
     if (global_comms_status == COMMS_OK)

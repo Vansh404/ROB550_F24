@@ -25,7 +25,7 @@ command.wz = turn_vel
 # Send mbot velocity command
 lc.publish("MBOT_VEL_CMD",command.encode())
 # Let MBot drive for 1 seconds
-time.sleep(20)
+time.sleep(10)
 
 # Send velocity = 0 to stop
 command.vx = 0
