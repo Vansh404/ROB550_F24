@@ -23,6 +23,7 @@ typedef struct {
     float kd;
     float prev_error;
     float integral;
+    float derivative;
 } PIDController;
 
 PIDController pid_left, pid_right;
@@ -53,16 +54,21 @@ void print_mbot_params(const mbot_params_t* params);
     pid->kd = kd;
     pid->prev_error = 0.0f;
     pid->integral = 0.0f;
+    pid->derivative=0.0f;
 }
 
 float pid_compute(PIDController *pid, float setpoint, float measured_value) {
     float error = setpoint - measured_value;
     pid->integral += error; // Accumulate the error for integral term
-    float derivative = error - pid->prev_error; // Calculate the derivative
+    //float derivative = error - pid->prev_error; // Calculate the derivative
+    float raw_derivative = error - pid->prev_error;
+    // Apply low-pass filter to the derivative
+    float alpha = 0.8f; // Tuning parameter for smoothing (between 0 and 1)
+    pid->derivative = alpha * raw_derivative + (1 - alpha) * pid->derivative;
     pid->prev_error = error;
 
     // Compute PID output
-    return (pid->kp * error) + (pid->ki * pid->integral) + (pid->kd * derivative);
+    return (pid->kp * error) + (pid->ki * pid->integral) + (pid->kd * pid->derivative);
 }
 
 
@@ -179,8 +185,8 @@ int main()
     mbot_init_hardware();
     mbot_init_comms();
     mbot_read_fram(0, sizeof(params), &params);
-    pid_init(&pid_left, 1.0, 0.01, 0.1);   // Example gains, adjust as needed
-    pid_init(&pid_right, 1.0, 0.01, 0.1);
+    pid_init(&pid_left, 1.0, 0.01, 1);   // Example gains, adjust as needed
+    pid_init(&pid_right, 1.0, 0.01, 1);
 
 
     //Check also that define drive type is same as FRAM drive type

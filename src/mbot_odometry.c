@@ -1,7 +1,7 @@
 #include "mbot_odometry.h"
 
 int mbot_calculate_odometry(serial_twist2D_t mbot_vel, float dt, serial_pose2D_t *odometry,serial_mbot_imu_t *imu){
-    float thresh=0.05;
+    float thresh=0.01;
     
     float del_GO=fabs(imu->gyro[2]-mbot_vel.wz);
     
